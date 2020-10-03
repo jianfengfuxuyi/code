@@ -48,7 +48,7 @@ memory_size = 3000
 env = FranEnv(ue_nm, fap_nm)  # network environment settings
 
 state_len = env.FAP_nm * env.UE_nm + env.FAP_nm + 2  # network connection state, channel gain, the size of the task (in bits), CPU cycles required for computation
-nb_actions = 1 * env.FAP_nm  # 动作空间的数量
+nb_actions = 1 * env.FAP_nm  # the number of action space
 
 
 # initialization #
@@ -59,8 +59,8 @@ print(initial_state)
 # memory initialization #
 memory = deque(maxlen=memory_size)
 
-# ini_action = np.ones(env.UE_nm, dtype='intp') * (nb_actions - 1)  # 每个action指示的是索引值，采用intp数据类型  # memory 初始化
-ini_action_index = [3, 3, 3, 3, 3, 3]  # 6个用户做接入点选择，所选的接入点索引集合
+# ini_action = np.ones(env.UE_nm, dtype='intp') * (nb_actions - 1)  # each action represents the serial number
+ini_action_index = [3, 3, 3, 3, 3, 3]  # the F-AP selection for 6 users
 ini_reward = []
 ini_new_state = []
 ini_cur_state = initial_state
@@ -88,24 +88,21 @@ ave_reward_epoch = []
 q_mean = []
 total_step = 0
 
-dqn_epoch_step = np.zeros((trials, nb_steps))     # dqn；存储各个epoch，各个step的奖励值
-#ex_epoch_step = np.zeros((trials, nb_steps))      # 穷举；存储各个epoch，各个step的奖励值
-prio_epoch_step = np.zeros((trials, nb_steps))    # 选择优先级（根据信道增益，计算能力得出）最大的接入点，存储各个epoch, 各个step的奖励值
-random_epoch_step = np.zeros((trials, nb_steps))  # 等概率随机选择接入点(FAP), 存储各个epoch, 各个step的奖励值
-greedy_epoch_step = np.zeros((trials, nb_steps))  # 贪婪算法选择接入点(FAP), 存储各个epoch, 各个step的奖励值
-genetic_epoch_step = np.zeros((trials, nb_steps)) # 遗传算法选择接入点(FAP),存储各个epoch, 各个step的奖励值
-dqn_consumption_UE = []                           # DQN：存储每个step,6个用户的总功耗的数值
-#ex_consumption_UE = []                            # 穷举：存储每个step,6个用户的总功耗的数值
-prio_consumption_UE = []                          # 选择优先级（根据信道增益，计算能力得出）最大的接入点，存储每个step,6个用户的总功耗的数值
-random_consumption_UE = []                        # 等概率随机选择接入点(FAP),存储每个step,6个用户的总功耗的数值
-greedy_consumption_UE = []                        # 贪婪算法选择接入点(FAP),存储每个step,6个用户的总功耗的数值
-genetic_consumption_UE = []                       # 遗传算法选择接入点(FAP),存储每个step,6个用户的总功耗的数值
-avestep_dqn_consumption = []                      # 以step为单位（x坐标），dqn训练所有epoch的求和平均功耗
-#avestep_ex_consumption = []                       # 以step为单位（x坐标），穷举最优训练所有epoch的求和平均功耗
-avestep_prio_consumption = []                     # 以step为单位（x坐标），按优先级选择FAP训练所有epoch的求和平均功耗
-avestep_random_consumption = []                   # 以step为单位（x坐标），等概率选择FAP训练所有epoch的求和平均功耗
-avestep_greedy_consumption = []                   # 以step为单位（x坐标），贪婪算法选择FAP训练所有epoch的求和平均功耗
-avestep_genetic_consumption = []                  # 以step为单位（x坐标），遗传算法选择FAP训练所有epoch的求和平均功耗
+dqn_epoch_step = np.zeros((trials, nb_steps))     # dqn；store the reward for each step, each epoch
+prio_epoch_step = np.zeros((trials, nb_steps))    # priority-based selection
+random_epoch_step = np.zeros((trials, nb_steps))  # random-based F-AP selection
+greedy_epoch_step = np.zeros((trials, nb_steps))  # greedy algorithm-based F-AP selection
+genetic_epoch_step = np.zeros((trials, nb_steps)) # genetic algorithm-based F-AP selection
+dqn_consumption_UE = []                           # DQN
+prio_consumption_UE = []                          # priority-based selection, store the total reward in each epoch
+random_consumption_UE = []                        # random-based selection, store the total reward in each epoch
+greedy_consumption_UE = []                        # greedy algorithm-based F-AP selection
+genetic_consumption_UE = []                       # genetic algorithm-based F-AP selection
+avestep_dqn_consumption = []                      # the average energy consumption in step for DRL
+avestep_prio_consumption = []                     # the average energy consumption in step for priority-based F-AP selection
+avestep_random_consumption = []                   # the average energy consumption in step for random-based F-AP selection
+avestep_greedy_consumption = []                   # the average energy consumption in step for greedy algorithm-based F-AP selection
+avestep_genetic_consumption = []                  # the average energy consumption in step for genetic algorithm-based F-AP selection
 
 loss = []
 
@@ -259,9 +256,9 @@ with open("dqn.txt", "w")as a:
                                                         # The memory size is limited. When the memory capacity is reached, a record will be deleted every time a record is added.
                                                         # Through statement memory.append(), the far left record can be automatically deleted
 
-                                                        # 5. Update Q Network using mini-batch : Experience Replay
+                                                        # Update Q Network using mini-batch : Experience Replay
 
-                                                        # 8. 更新状态state
+                                                        # Update the current state
                                                         # if trial >= (trials-81):
                                                         cur_state1 = new_state1  # DRL new state
                                                         cur_state4 = new_state4  # random selection new state

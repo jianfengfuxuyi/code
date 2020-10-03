@@ -10,9 +10,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 import sys
-from keras.models import Sequential  #
-from keras.layers import Dense, Activation  #
-from keras.optimizers import Adam, SGD  # 采用adam对神经网络进行优化
+from keras.models import Sequential  
+from keras.layers import Dense, Activation  
+from keras.optimizers import Adam, SGD  # adopt ADAM to optimize neural networks
 from keras.models import load_model
 
 
@@ -44,7 +44,7 @@ class FAP(object):
         self.x = 0.0
         self.y = 0.0
         self.cap = 0  # the computation capability of F-AP Hz
-        self.cf = 10 ** (-30)
+        self.cf = 10 ** (-10)
         self.comp_limit = 0
 
 
@@ -57,9 +57,9 @@ class FranEnv(object):
         self.ue = []  # UE object
         self.ff = np.ones(1000)
         self.u2f_distance = np.zeros((UE_nm, FAP_nm))
-        self.link_cf = 10 ** (-8)
-        self.cloud_cf =  1.5 * (10 ** (-30))
-        self.cloud_cap = 6 * (10 ** 9)
+        self.link_cf = 10 ** (-5)
+        self.cloud_cf =  1.5 * (10 ** (-8))
+        self.cloud_cap = 6 * (10 ** 6)
         self.para_init()
 
 
@@ -67,21 +67,28 @@ class FranEnv(object):
         for ue_index in range(0, self.UE_nm):
             self.ue.append(UE())
 
-            self.ue[ue_index].task_b = [3, 2, 1, 4, 5]     # in bits，10^5
-            self.ue[ue_index].task_d = [21, 12, 5, 32, 45]  # in CPU-cycles，10^8
+            self.ue[ue_index].task_b = [3, 2, 6, 4, 5]     # in bits，10^5
+            self.ue[ue_index].task_d = [21, 12, 48, 32, 45]  # in CPU-cycles，10^8
 
+
+            '''the transition probability matrix for the channel gain between each user to F-AP 1
+            for example, the channel gain value for UE 1 to F-AP 1 can be randomly chosen from 4 values
+            thus, the dimension for this matrix is 4*4
+            each decimal value represents the probability that the channel gain between UE to F-AP 1 is the mth (column number) value in offloading duration t
+            if the channel gain between UE to F-AP 1 is the nth (row number) value in offloading duration t-1
+            '''
             self.ue[ue_index].channel_MP1[0] = [0.34, 0.15, 0.32, 0.19]
             self.ue[ue_index].channel_MP1[1] = [0.28, 0.01, 0.13, 0.58]
             self.ue[ue_index].channel_MP1[2] = [0.23, 0.15, 0.39, 0.23]
             self.ue[ue_index].channel_MP1[3] = [0.14, 0.40, 0.20, 0.26]
 
-            # transfer probability matrix 1
+          
             self.ue[ue_index].calchannel_MP1[0] = [0.34, 0.49, 0.81, 1]
             self.ue[ue_index].calchannel_MP1[1] = [0.28, 0.29, 0.42, 1]
             self.ue[ue_index].calchannel_MP1[2] = [0.23, 0.38, 0.77, 1]
             self.ue[ue_index].calchannel_MP1[3] = [0.14, 0.54, 0.74, 1]
 
-            # transfer probability matrix 2
+            # the transition probability matrix for the channel gain between each user to F-AP 2
             self.ue[ue_index].channel_MP2[0] = [0.48, 0.29, 0.02, 0.21]
             self.ue[ue_index].channel_MP2[1] = [0.28, 0.12, 0.40, 0.20]
             self.ue[ue_index].channel_MP2[2] = [0.32, 0.22, 0.31, 0.15]
@@ -93,7 +100,7 @@ class FranEnv(object):
             self.ue[ue_index].calchannel_MP2[2] = [0.32, 0.54, 0.85, 1]
             self.ue[ue_index].calchannel_MP2[3] = [0.26, 0.36, 0.70, 1]
 
-            # transfer probability matrix 3
+            # the transition probability matrix for the channel gain between each user to F-AP 3
             self.ue[ue_index].channel_MP3[0] = [0.42, 0.13, 0.14, 0.31]
             self.ue[ue_index].channel_MP3[1] = [0.36, 0.22, 0.37, 0.05]
             self.ue[ue_index].channel_MP3[2] = [0.32, 0.14, 0.35, 0.19]
@@ -104,6 +111,12 @@ class FranEnv(object):
             self.ue[ue_index].calchannel_MP3[2] = [0.32, 0.46, 0.81, 1]
             self.ue[ue_index].calchannel_MP3[3] = [0.23, 0.33, 0.68, 1]
 
+        ''' the transition probability matrix for the task requested by UE 1
+        for example, the task requested by UE 1 can be randomly chosen from 5 different tasks
+        thus, the dimension for this matrix is 5*5
+        each decimal value represents the probability that UE 1 requests mth (column number) task in offloading duration t
+        if UE 1 requests nth (row number) task in offloading duration t-1
+        '''
         self.ue[0].task_MP[0] = [0.32, 0.44, 0.13, 0.10, 0.01]
         self.ue[0].task_MP[1] = [0.27, 0.34, 0.14, 0.15, 0.1]
         self.ue[0].task_MP[2] = [0.17, 0.50, 0.17, 0.08, 0.08]
@@ -116,6 +129,7 @@ class FranEnv(object):
         self.ue[0].task_MP1[3] = [0.03, 0.34, 0.62, 0.76, 1]
         self.ue[0].task_MP1[4] = [0.13, 0.34, 0.50, 0.66, 1]
 
+        # the transition probability matrix for the task requested by UE 2, dimension is in 5*5
         self.ue[1].task_MP[0] = [0.2, 0.26, 0.26, 0.22, 0.06]
         self.ue[1].task_MP[1] = [0.26, 0.11, 0.07, 0.29, 0.28]
         self.ue[1].task_MP[2] = [0.24, 0.09, 0.24, 0.29, 0.13]
@@ -128,6 +142,7 @@ class FranEnv(object):
         self.ue[1].task_MP1[3] = [0.18, 0.33, 0.59, 0.87, 1]
         self.ue[1].task_MP1[4] = [0.13, 0.21, 0.4, 0.85, 1]
 
+        # the transition probability matrix for the task requested by UE 3, dimension is in 5*5
         self.ue[2].task_MP[0] = [0.03, 0.22, 0.11, 0.28, 0.35]
         self.ue[2].task_MP[1] = [0.3, 0.09, 0.29, 0.06, 0.27]
         self.ue[2].task_MP[2] = [0.27, 0.16, 0.29, 0.22, 0.06]
@@ -140,6 +155,7 @@ class FranEnv(object):
         self.ue[2].task_MP1[3] = [0.12, 0.4, 0.64, 0.73, 1]
         self.ue[2].task_MP1[4] = [0.17, 0.37, 0.6, 0.74, 1]
 
+        # the transition probability matrix for the task requested by UE 4, dimension is in 5*5
         self.ue[3].task_MP[0] = [0.13, 0.27, 0.04, 0.24, 0.32]
         self.ue[3].task_MP[1] = [0.25, 0.06, 0.23, 0.21, 0.25]
         self.ue[3].task_MP[2] = [0.23, 0.28, 0.08, 0.36, 0.05]
@@ -152,6 +168,7 @@ class FranEnv(object):
         self.ue[3].task_MP1[3] = [0.03, 0.15, 0.16, 0.6, 1]
         self.ue[3].task_MP1[4] = [0.29, 0.5, 0.6, 0.9, 1]
 
+        # the transition probability matrix for the task requested by UE 5, dimension is in 5*5
         self.ue[4].task_MP[0] = [0.12, 0.06, 0.42, 0.23, 0.17]
         self.ue[4].task_MP[1] = [0.36, 0.02, 0.25, 0.19, 0.18]
         self.ue[4].task_MP[2] = [0.02, 0.28, 0.22, 0.34, 0.14]
@@ -164,7 +181,7 @@ class FranEnv(object):
         self.ue[4].task_MP1[3] = [0.07, 0.32, 0.47, 0.79, 1]
         self.ue[4].task_MP1[4] = [0.34, 0.65, 0.72, 0.92, 1]
 
-        # task transfer probability matrix for UE 6
+        # the transition probability matrix for the task requested by UE 6, dimension is in 5*5
         self.ue[5].task_MP[0] = [0.04, 0.12, 0.39, 0.19, 0.26]
         self.ue[5].task_MP[1] = [0.1, 0.05, 0.01, 0.34, 0.5]
         self.ue[5].task_MP[2] = [0.26, 0.18, 0.03, 0.46, 0.07]
@@ -177,32 +194,50 @@ class FranEnv(object):
         self.ue[5].task_MP1[3] = [0.1, 0.43, 0.57, 0.84, 1]
         self.ue[5].task_MP1[4] = [0.09, 0.36, 0.46, 0.69, 1]
 
-        # Channel gain for UE 1
+        ''' the channel gain value matrix between UE 1 to F-AP 1-3
+        row - UE 1 to F-AP x, x = 1,2,3
+        column - 4 values can be chosen for each channel gain 
+        '''
         self.ue[0].u2f_cq[0] = [1, 1.5, 3, 3.5]
         self.ue[0].u2f_cq[1] = [2, 2.5, 4, 4.5]
         self.ue[0].u2f_cq[2] = [1.1, 2.3, 3.5, 5.6]
 
-        # Channel gain for UE 2
+        ''' the channel gain value matrix between UE 2 to F-AP 1-3
+        row - UE 2 to F-AP x, x = 1,2,3
+        column - 4 values can be chosen for each channel gain 
+        '''
         self.ue[1].u2f_cq[0] = [3, 6, 4, 5]
         self.ue[1].u2f_cq[1] = [2.8, 5, 3.7, 1]
         self.ue[1].u2f_cq[2] = [5.3, 2.4, 3.9, 6.7]
 
-        # Channel gain for UE 3
+        ''' the channel gain value matrix between UE 3 to F-AP 1-3
+        row - UE 3 to F-AP x, x = 1,2,3
+        column - 4 values can be chosen for each channel gain 
+        '''
         self.ue[2].u2f_cq[0] = [1.4, 5, 2, 1.6]
         self.ue[2].u2f_cq[1] = [4.1, 3, 3.6, 2.1]
         self.ue[2].u2f_cq[2] = [2.2, 4.3, 5.6, 7]
 
-        # Channel gain for UE 4
+        ''' the channel gain value matrix between UE 4 to F-AP 1-3
+        row - UE 4 to F-AP x, x = 1,2,3
+        column - 4 values can be chosen for each channel gain 
+        '''
         self.ue[3].u2f_cq[0] = [4.5, 3.6, 5.7, 6]
         self.ue[3].u2f_cq[1] = [6.2, 7, 4, 5.5]
         self.ue[3].u2f_cq[2] = [3.6, 5.1, 5.2, 4]
 
-        # Channel gain for UE 5
+        ''' the channel gain value matrix between UE 5 to F-AP 1-3
+        row - UE 5 to F-AP x, x = 1,2,3
+        column - 4 values can be chosen for each channel gain 
+        '''
         self.ue[4].u2f_cq[0] = [5.5, 6, 4.9, 7]
         self.ue[4].u2f_cq[1] = [1.9, 2.7, 4.3, 4.9]
         self.ue[4].u2f_cq[2] = [2.1, 3.9, 4.2, 3.3]
 
-        # Channel gain for UE 6
+        ''' the channel gain value matrix between UE 6 to F-AP 1-3
+        row - UE 6 to F-AP x, x = 1,2,3
+        column - 4 values can be chosen for each channel gain 
+        '''
         self.ue[5].u2f_cq[0] = [6.6, 5.3, 4.2, 4.5]
         self.ue[5].u2f_cq[1] = [5.7, 3, 6.2, 4.9]
         self.ue[5].u2f_cq[2] = [4.5, 5.3, 6.6, 3.1]
@@ -231,16 +266,16 @@ class FranEnv(object):
     def sample(self):  # randomly generate an action
         return random.randint(0, self.nb_actions - 1)
 
-
+    # initialization for the beginning state
     def start_state(self, len1):
         new_state = np.zeros((self.UE_nm, len1))
         for ue_index in range(self.UE_nm):
             new_state[ue_index][len1 - 2] = max(self.ue[ue_index].task_b)
             new_state[ue_index][len1 - 1] = max(self.ue[ue_index].task_d)
             for i in range(self.UE_nm):
-                new_state[ue_index][i * self.FAP_nm] = 1
-                new_state[ue_index][i * self.FAP_nm + 1] = 0
-                new_state[ue_index][i * self.FAP_nm + 2] = 0
+                new_state[ue_index][i * self.FAP_nm] = 1        # choose to connect F-AP 1
+                new_state[ue_index][i * self.FAP_nm + 1] = 0    # choose not to connect F-AP 2
+                new_state[ue_index][i * self.FAP_nm + 2] = 0    # choose not to connect F-AP 3
             for fap_index in range(0, self.FAP_nm):
                 if fap_index == 0:
                     new_state[ue_index][self.UE_nm * self.FAP_nm + fap_index] = min(self.ue[ue_index].u2f_cq[fap_index])
@@ -295,7 +330,7 @@ class FranEnv(object):
 
         return new_state
 
-
+    # the channel between users and F-APs for the next state
     def next_channelgain(self, ue_index, fap_index, gain1):
         c = random.random()  # generate a random number
         for j in range(0, 4):
@@ -304,6 +339,7 @@ class FranEnv(object):
 
         return j
 
+    # find the serial number of the current channel gain
     def search_channelgain(self, ue_index, fap_index, cur_state):
         for p in range(0, 4):
             if self.ue[ue_index].u2f_cq[fap_index][p] == cur_state[ue_index][self.UE_nm * self.FAP_nm + fap_index]:  # the channel gain between user and F-AP 1
@@ -401,7 +437,7 @@ class FranEnv(object):
 
     # the energy consumption for DRL training, exhaustive search, priority-based search, random selection
     def dqn_step1(self, cur_state, action_number, state_len):
-        W = 20 * (10 ** 6)
+        W = 20 * (10 ** 7)
         T_upload = 0.04
         t_upload = np.zeros(self.UE_nm)
         data_rate = np.zeros(self.UE_nm)
@@ -589,8 +625,7 @@ class FranEnv(object):
 
         return new_state1, new_state4, new_state5, new_state6
 
-
-
+    # greedy algorithm for F-APs' decisions on request forwarding
     def FAP_offdecision(self, ue_index1, fap_index1, FAP_ue, cur_state1):
         fap_consumption = np.zeros(len(FAP_ue))
         link_consumption = np.zeros(len(FAP_ue))
@@ -689,7 +724,7 @@ class DQN(object):
         self.model = self.create_model(nb_actions, observation_shape)
         self.target_model = self.create_model(nb_actions, observation_shape)
 
-
+    # architecture building #
     def create_model(self, nb_actions, observation_shape):
         model = Sequential()
         model.add(Dense(64, input_dim=observation_shape, activation="relu"))  # input layer
